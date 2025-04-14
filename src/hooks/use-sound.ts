@@ -58,7 +58,7 @@ export function useSound(soundPath: string, options: SoundOptions = {}) {
       console.error("Error initializing audio:", err)
       setError(err instanceof Error ? err : new Error(String(err)))
     }
-  }, [soundPath, options])
+  }, [soundPath])
 
   // Update volume when options change
   useEffect(() => {
