@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Slider } from "@/components/ui/slider"
-import { Music, Music2, VolumeX, Volume2, Headphones, HeadphoneOff } from "lucide-react"
+import { VolumeX, Volume2, Headphones, HeadphoneOff } from "lucide-react"
 
 export type SoundSettings = {
   masterVolume: number
