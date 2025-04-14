@@ -136,7 +136,7 @@ export default function MemoryGame() {
   }, []);
 
   useEffect(() => {
-    if (matches === 1 && !hasWon) {
+    if (matches === 10 && !hasWon) {
       setHasWon(true);
       openModal();
       gameCompleteSound.play();
