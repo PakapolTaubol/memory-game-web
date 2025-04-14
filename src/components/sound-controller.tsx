@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Slider } from "@/components/ui/slider"
-import { Music, Music2, VolumeX, Volume2 } from "lucide-react"
+import { Music, Music2, VolumeX, Volume2, Headphones, HeadphoneOff } from "lucide-react"
 
 export type SoundSettings = {
   masterVolume: number
@@ -59,17 +59,17 @@ export default function SoundController({
   }
 
   return (
-    <div className="flex flex-wrap justify-center gap-4 w-full max-w-3xl px-4 py-3 rounded-lg bg-indigo-950/40 backdrop-blur-sm">
+    <div className="flex flex-wrap justify-center gap-4 w-full max-w-3xl px-4 py-3 rounded-lg backdrop-blur-sm">
       <Button
         variant="outline"
         size="icon"
         onClick={onMusicToggle}
-        className="bg-indigo-900/50 border-indigo-700 hover:bg-indigo-800"
+        className="bg-indigo-900/50 border-indigo-700 hover:bg-indigo-800 cursor-pointer"
       >
         {isMusicPlaying ? (
-          <Music2 className="h-5 w-5 text-indigo-200" />
+          <Headphones className="h-5 w-5 text-indigo-200" />
         ) : (
-          <Music className="h-5 w-5 text-indigo-400" />
+          <HeadphoneOff className="h-5 w-5 text-indigo-400" />
         )}
       </Button>
 
@@ -77,7 +77,7 @@ export default function SoundController({
         variant="outline"
         size="icon"
         onClick={toggleMute}
-        className="bg-indigo-900/50 border-indigo-700 hover:bg-indigo-800"
+        className="bg-indigo-900/50 border-indigo-700 hover:bg-indigo-800 cursor-pointer"
       >
         {settings.isMuted ? (
           <VolumeX className="h-5 w-5 text-indigo-400" />
@@ -99,7 +99,7 @@ export default function SoundController({
               masterVolume: value[0] / 100,
             })
           }}
-          className="flex-1"
+          className="flex-1 cursor-pointer"
         />
       </div>
     </div>

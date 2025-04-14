@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -27,6 +27,7 @@ import {
   Palette,
   Sparkles,
 } from "lucide-react";
+import Modal from "react-modal";
 
 type MemoryCard = {
   id: number;
@@ -72,11 +73,16 @@ export default function MemoryGame() {
   const [matches, setMatches] = useState(0);
   const [isChecking, setIsChecking] = useState(false);
   const [soundSettings, setSoundSettings] = useState<SoundSettings>({
-    masterVolume: 0.7,
-    musicVolume: 0.5,
-    effectsVolume: 0.8,
+    masterVolume: 0.5,
+    musicVolume: 0.4,
+    effectsVolume: 1.0,
     isMuted: false,
   });
+  const [hasWon, setHasWon] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const openModal = () => setIsModalOpen(true);
+  const closeModal = () => setIsModalOpen(false);
 
   // Use our custom hook for sounds
   const backgroundMusic = useSound("/sounds/background-music.mp3", {
@@ -125,9 +131,21 @@ export default function MemoryGame() {
     // when we pass new options in the dependency array
   }, [soundSettings]);
 
+  useEffect(()=> {
+    Modal.setAppElement('body');
+  }, []);
+
+  useEffect(() => {
+    if (matches === 1 && !hasWon) {
+      setHasWon(true);
+      openModal();
+      gameCompleteSound.play();
+    }
+  }, [matches, hasWon, gameCompleteSound]);
+
   const handleCardClick = (clickedIndex: number) => {
     // Prevent clicking if already checking or card is already matched
-    if (isChecking || cards[clickedIndex].isMatched) return;
+    if (isChecking || cards[clickedIndex].isMatched || hasWon) return;
     // Prevent clicking if card is already flipped
     if (flippedIndexes.includes(clickedIndex)) return;
     // Prevent clicking if two cards are already flipped
@@ -163,14 +181,6 @@ export default function MemoryGame() {
           setFlippedIndexes([]);
           setMatches((m) => m + 1);
           setIsChecking(false);
-
-          // Check for game completion (10 pairs in a 5x4 grid)
-          if (matches === 9) {
-            gameCompleteSound.play();
-            toast("🎉 Congratulations! You've found all the matches! 🎈", {
-              className: "bg-purple-900 text-purple-100 border-purple-700",
-            });
-          }
         }, 500);
       } else {
         // No match - reset after delay
@@ -189,7 +199,8 @@ export default function MemoryGame() {
     setCards(initialCards().sort(() => Math.random() - 0.5));
     setFlippedIndexes([]);
     setMatches(0);
-    setIsChecking(false);
+    setHasWon(false);
+    setIsModalOpen(false);
   };
 
   return (
@@ -260,10 +271,61 @@ export default function MemoryGame() {
         onClick={resetGame}
         variant="outline"
         size="lg"
-        className="bg-indigo-950 border-indigo-700 hover:bg-indigo-900 hover:border-indigo-500 text-indigo-200 hover:text-indigo-100"
+        className="bg-indigo-950 border-indigo-700 hover:bg-indigo-900 hover:border-indigo-500 text-indigo-200 hover:text-indigo-100 cursor-pointer"
       >
         Start New Game
       </Button>
+
+      <Modal
+        isOpen={isModalOpen}
+        onRequestClose={closeModal}
+        style={{
+          overlay: {
+            backgroundColor: "rgba(0, 0, 0, 0.4)",
+            zIndex: 100,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            margin: '0 auto',
+          },
+          content: {
+            position: "relative",
+            backgroundColor: "rgba(79, 70, 229, 0.1)", // สีม่วงหลัก (Indigo-500) พร้อมความโปร่งใส 80%
+            color: "#FFFFFF", // สีขาว
+            border: "none",
+            borderRadius: "12px",
+            padding: "48px",
+            maxWidth: "480px",
+            width: "95%",
+            textAlign: "center",
+            backdropFilter: "blur(10px)",
+            inset: '0',
+          },
+        }}
+        contentLabel="Congratulations Modal"
+      >
+        <h2 className="text-3xl font-bold mb-6 text-white">
+          🎉 Congratulations! 🎉
+        </h2>
+        <p className="text-lg mb-8 text-white">
+          You've masterfully matched all the cards!
+        </p>
+        <div className="flex justify-center gap-4">
+          <Button
+            onClick={resetGame}
+            className="bg-indigo-500 hover:bg-indigo-600 text-white rounded-full px-6 py-3 text-lg font-semibold cursor-pointer"
+          >
+            Play Again
+          </Button>
+          <Button
+            onClick={closeModal}
+            variant="outline"
+            className="text-indigo-600 border-indigo-300 hover:bg-indigo-300 hover:text-indigo-900 rounded-full px-6 py-3 text-lg font-semibold cursor-pointer"
+          >
+            Close
+          </Button>
+        </div>
+      </Modal>
     </div>
   );
 }
