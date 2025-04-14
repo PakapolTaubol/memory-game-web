@@ -35,7 +35,7 @@ type MemoryCard = {
   color: string;
 };
 
-const createCards = () => {
+const initialCards = (): MemoryCard[] => {
   const iconConfigs = [
     { icon: Heart, color: "text-rose-400" },
     { icon: Star, color: "text-amber-400" },
@@ -55,30 +55,19 @@ const createCards = () => {
   ];
 
   const cards: MemoryCard[] = [];
-
-  // We need 12 pairs for a 5x5 grid (24 cards + 1 center card that's decorative)
-  const selectedIcons = iconConfigs.slice(0, 12);
+  const numberOfPairs = 10; // For a 5x4 grid (20 cards)
+  const selectedIcons = iconConfigs.slice(0, numberOfPairs);
 
   selectedIcons.forEach(({ icon, color }, index) => {
-    cards.push(
-      { id: index * 2, icon, color, isMatched: false },
-      { id: index * 2 + 1, icon, color, isMatched: false }
-    );
+    cards.push({ id: index * 2, icon, color, isMatched: false });
+    cards.push({ id: index * 2 + 1, icon, color, isMatched: false });
   });
 
-  // Add one more card for the center (25th card)
-  cards.push({
-    id: 24,
-    icon: iconConfigs[12].icon,
-    color: iconConfigs[12].color,
-    isMatched: true,
-  });
-
-  return cards.sort(() => Math.random() - 0.5);
+  return cards;
 };
 
 export default function MemoryGame() {
-  const [cards, setCards] = useState<MemoryCard[]>(createCards());
+  const [cards, setCards] = useState<MemoryCard[]>(initialCards());
   const [flippedIndexes, setFlippedIndexes] = useState<number[]>([]);
   const [matches, setMatches] = useState(0);
   const [isChecking, setIsChecking] = useState(false);
@@ -120,6 +109,11 @@ export default function MemoryGame() {
       ? 0
       : soundSettings.masterVolume * soundSettings.effectsVolume,
   });
+
+  // Shuffle cards only after the component has mounted on the client
+  useEffect(() => {
+    setCards((prevCards) => prevCards.sort(() => Math.random() - 0.5));
+  }, []);
 
   // Update sound volumes when settings change
   useEffect(() => {
@@ -170,9 +164,8 @@ export default function MemoryGame() {
           setMatches((m) => m + 1);
           setIsChecking(false);
 
-          // Check for game completion (12 pairs in a 5x5 grid)
-          if (matches === 11) {
-            // 12 pairs - 1 because we're incrementing after this check
+          // Check for game completion (10 pairs in a 5x4 grid)
+          if (matches === 9) {
             gameCompleteSound.play();
             toast("🎉 Congratulations! You've found all the matches! 🎈", {
               className: "bg-purple-900 text-purple-100 border-purple-700",
@@ -193,7 +186,7 @@ export default function MemoryGame() {
   };
 
   const resetGame = () => {
-    setCards(createCards());
+    setCards(initialCards().sort(() => Math.random() - 0.5));
     setFlippedIndexes([]);
     setMatches(0);
     setIsChecking(false);
@@ -205,7 +198,7 @@ export default function MemoryGame() {
         <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-300 via-pink-300 to-indigo-300 text-transparent bg-clip-text">
           Memory Match Game
         </h1>
-        <p className="text-indigo-200">Matches found: {matches} of 12</p>
+        <p className="text-indigo-200">Matches found: {matches} of 10</p>
       </div>
 
       {/* Sound Controls */}
@@ -217,7 +210,7 @@ export default function MemoryGame() {
       />
 
       {/* Game Grid */}
-      <div className="grid grid-cols-5 gap-2 md:gap-3 p-4 rounded-xl bg-indigo-950/50 backdrop-blur-sm">
+      <div className="grid grid-cols-5 grid-rows-4 gap-2 md:gap-3 p-4 rounded-xl bg-indigo-950/50 backdrop-blur-sm">
         {cards.map((card, index) => (
           <motion.div
             key={card.id}
@@ -246,7 +239,7 @@ export default function MemoryGame() {
                     initial={{ opacity: 0, rotateY: 180 }}
                     animate={{ opacity: 1, rotateY: 180 }}
                     exit={{ opacity: 0, rotateY: 180 }}
-                    className="absolute inset-0 flex items-center justify-center backface-hidden"
+                    className="absolute inset-0 flex items-center justify-center"
                   >
                     <card.icon
                       className={`w-8 h-8 sm:w-10 sm:h-10 ${
