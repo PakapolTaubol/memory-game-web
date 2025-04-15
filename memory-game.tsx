@@ -207,35 +207,69 @@ export default function MemoryGame() {
   const initializeAudio = () => {
     if (typeof window !== "undefined") {
       try {
+        // Check if we're on iOS
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+        console.log("Initializing audio on iOS:", isIOS);
+
         const audioContext = new (window.AudioContext ||
           (window as any).webkitAudioContext)();
+        console.log("Audio context state:", audioContext.state);
 
         // Function to resume audio context
-        const resumeAudio = () => {
-          if (audioContext.state === "suspended") {
-            audioContext.resume().then(() => {
-              backgroundMusic.play();
-            });
+        const resumeAudio = async () => {
+          try {
+            if (audioContext.state === "suspended") {
+              console.log("Attempting to resume audio context...");
+              await audioContext.resume();
+              console.log("Audio context resumed successfully");
+
+              // Small delay to ensure context is ready
+              setTimeout(() => {
+                backgroundMusic.play();
+                console.log("Background music started");
+              }, 100);
+            }
+          } catch (error) {
+            console.error("Error resuming audio:", error);
           }
         };
 
-        // Try to resume on various user interactions
-        const resumeEvents = ["touchstart", "click", "keydown"];
-        resumeEvents.forEach((event) => {
-          window.addEventListener(event, resumeAudio, { once: true });
-        });
+        // For iOS, we need to handle the first interaction differently
+        if (isIOS) {
+          const handleFirstInteraction = () => {
+            console.log("First interaction detected on iOS");
+            resumeAudio();
+            // Remove all listeners after first interaction
+            ["touchstart", "click", "keydown"].forEach((event) => {
+              window.removeEventListener(event, handleFirstInteraction);
+            });
+          };
 
-        // Also try to resume immediately if possible
-        resumeAudio();
+          // Add listeners for first interaction
+          ["touchstart", "click", "keydown"].forEach((event) => {
+            window.addEventListener(event, handleFirstInteraction, {
+              once: true,
+            });
+          });
+        } else {
+          // For non-iOS devices, use the original approach
+          const resumeEvents = ["touchstart", "click", "keydown"];
+          resumeEvents.forEach((event) => {
+            window.addEventListener(event, resumeAudio, { once: true });
+          });
+          resumeAudio();
+        }
       } catch (error) {
         console.error("Error initializing audio:", error);
       }
     }
   };
 
-  useEffect(() => {
+  // Add a debug button to help test audio
+  const debugAudio = () => {
+    console.log("Debugging audio...");
     initializeAudio();
-  }, []);
+  };
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-4 space-y-6 bg-gradient-to-br from-purple-950 via-indigo-950 to-slate-950">
@@ -244,6 +278,12 @@ export default function MemoryGame() {
           Memory Game By Pakapol Taubol
         </h1>
         <p className="text-indigo-200">Matches found: {matches} of 10</p>
+        <Button
+          onClick={debugAudio}
+          className="mt-2 bg-indigo-500 hover:bg-indigo-600"
+        >
+          Debug Audio
+        </Button>
       </div>
 
       {/* Sound Controls */}
