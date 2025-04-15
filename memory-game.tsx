@@ -131,8 +131,8 @@ export default function MemoryGame() {
     // when we pass new options in the dependency array
   }, [soundSettings]);
 
-  useEffect(()=> {
-    Modal.setAppElement('body');
+  useEffect(() => {
+    Modal.setAppElement("body");
   }, []);
 
   useEffect(() => {
@@ -201,31 +201,47 @@ export default function MemoryGame() {
     setMatches(0);
     setHasWon(false);
     setIsModalOpen(false);
-    backgroundMusic.play();
+    initializeAudio();
+  };
+
+  const initializeAudio = () => {
+    if (typeof window !== "undefined") {
+      try {
+        const audioContext = new (window.AudioContext ||
+          (window as any).webkitAudioContext)();
+
+        // Function to resume audio context
+        const resumeAudio = () => {
+          if (audioContext.state === "suspended") {
+            audioContext.resume().then(() => {
+              backgroundMusic.play();
+            });
+          }
+        };
+
+        // Try to resume on various user interactions
+        const resumeEvents = ["touchstart", "click", "keydown"];
+        resumeEvents.forEach((event) => {
+          window.addEventListener(event, resumeAudio, { once: true });
+        });
+
+        // Also try to resume immediately if possible
+        resumeAudio();
+      } catch (error) {
+        console.error("Error initializing audio:", error);
+      }
+    }
   };
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-      if (audioContext.state === "suspended") {
-        const handleFirstTouch = () => {
-          audioContext.resume().then(() => {
-            backgroundMusic.play();
-            window.removeEventListener("touchstart", handleFirstTouch);
-          });
-        };
-        window.addEventListener("touchstart", handleFirstTouch, { once: true });
-      } else {
-        backgroundMusic.play();
-      }
-    }
+    initializeAudio();
   }, []);
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-4 space-y-6 bg-gradient-to-br from-purple-950 via-indigo-950 to-slate-950">
       <div className="text-center space-y-2">
         <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-300 via-pink-300 to-indigo-300 text-transparent bg-clip-text">
-          Memory Match Game
+          Memory Game By Pakapol Taubol
         </h1>
         <p className="text-indigo-200">Matches found: {matches} of 10</p>
       </div>
@@ -304,7 +320,7 @@ export default function MemoryGame() {
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            margin: '0 auto',
+            margin: "0 auto",
           },
           content: {
             position: "relative",
@@ -317,7 +333,7 @@ export default function MemoryGame() {
             width: "95%",
             textAlign: "center",
             backdropFilter: "blur(10px)",
-            inset: '0',
+            inset: "0",
           },
         }}
         contentLabel="Congratulations Modal"
