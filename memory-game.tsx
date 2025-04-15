@@ -201,7 +201,25 @@ export default function MemoryGame() {
     setMatches(0);
     setHasWon(false);
     setIsModalOpen(false);
+    backgroundMusic.play();
   };
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      if (audioContext.state === "suspended") {
+        const handleFirstTouch = () => {
+          audioContext.resume().then(() => {
+            backgroundMusic.play();
+            window.removeEventListener("touchstart", handleFirstTouch);
+          });
+        };
+        window.addEventListener("touchstart", handleFirstTouch, { once: true });
+      } else {
+        backgroundMusic.play();
+      }
+    }
+  }, []);
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-4 space-y-6 bg-gradient-to-br from-purple-950 via-indigo-950 to-slate-950">
