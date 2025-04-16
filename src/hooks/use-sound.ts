@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 
 type SoundOptions = {
   volume?: number;
@@ -8,12 +8,46 @@ type SoundOptions = {
   autoplay?: boolean;
 };
 
+// Define the type for webkitAudioContext
+declare global {
+  interface Window {
+    webkitAudioContext?: typeof AudioContext;
+  }
+}
+
 export function useSound(soundPath: string, options: SoundOptions = {}) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
+
+  const play = useCallback(async () => {
+    if (!audioRef.current || !isLoaded || error) return;
+
+    try {
+      // Ensure AudioContext is running on iOS
+      if (audioContextRef.current?.state === "suspended") {
+        await audioContextRef.current.resume();
+      }
+
+      audioRef.current.currentTime = 0;
+      const playPromise = audioRef.current.play();
+
+      if (playPromise !== undefined) {
+        playPromise
+          .then(() => {
+            setIsPlaying(true);
+          })
+          .catch((err) => {
+            console.warn("Error playing sound:", err);
+            setIsPlaying(false);
+          });
+      }
+    } catch (err) {
+      console.warn("Error playing sound:", err);
+    }
+  }, [isLoaded, error]);
 
   useEffect(() => {
     try {
@@ -23,7 +57,7 @@ export function useSound(soundPath: string, options: SoundOptions = {}) {
       // Initialize AudioContext for iOS
       if (!audioContextRef.current) {
         audioContextRef.current = new (window.AudioContext ||
-          (window as any).webkitAudioContext)();
+          window.webkitAudioContext)();
       }
 
       // Set options
@@ -65,7 +99,7 @@ export function useSound(soundPath: string, options: SoundOptions = {}) {
       console.error("Error initializing audio:", err);
       setError(err instanceof Error ? err : new Error(String(err)));
     }
-  }, [soundPath]);
+  }, [soundPath, options.autoplay, options.loop, options.volume, play]);
 
   // Update volume when options change
   useEffect(() => {
@@ -74,47 +108,20 @@ export function useSound(soundPath: string, options: SoundOptions = {}) {
     }
   }, [options.volume]);
 
-  const play = async () => {
-    if (!audioRef.current || !isLoaded || error) return;
-
-    try {
-      // Ensure AudioContext is running on iOS
-      if (audioContextRef.current?.state === "suspended") {
-        await audioContextRef.current.resume();
-      }
-
-      audioRef.current.currentTime = 0;
-      const playPromise = audioRef.current.play();
-
-      if (playPromise !== undefined) {
-        playPromise
-          .then(() => {
-            setIsPlaying(true);
-          })
-          .catch((err) => {
-            console.warn("Error playing sound:", err);
-            setIsPlaying(false);
-          });
-      }
-    } catch (err) {
-      console.warn("Error playing sound:", err);
-    }
-  };
-
-  const pause = () => {
+  const pause = useCallback(() => {
     if (audioRef.current) {
       audioRef.current.pause();
       setIsPlaying(false);
     }
-  };
+  }, []);
 
-  const toggle = () => {
+  const toggle = useCallback(() => {
     if (isPlaying) {
       pause();
     } else {
       play();
     }
-  };
+  }, [isPlaying, pause, play]);
 
   return {
     play,
