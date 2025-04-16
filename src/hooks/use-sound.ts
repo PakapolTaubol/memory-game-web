@@ -49,59 +49,48 @@ export function useSound(soundPath: string, options: SoundOptions = {}) {
     }
   }, [isLoaded, error]);
 
+  // Initialize audio element and context
   useEffect(() => {
-    try {
-      // Create audio element
-      const audio = new Audio(soundPath);
-
-      // Initialize AudioContext for iOS
-      if (!audioContextRef.current) {
-        audioContextRef.current = new (window.AudioContext ||
-          window.webkitAudioContext)();
-      }
-
-      // Set options
-      if (options.loop !== undefined) audio.loop = options.loop;
-      if (options.volume !== undefined) audio.volume = options.volume;
-
-      // Set up event listeners
-      audio.addEventListener("canplaythrough", () => {
-        setIsLoaded(true);
-        if (options.autoplay) {
-          play();
-        }
-      });
-
-      audio.addEventListener("ended", () => {
-        if (!options.loop) {
-          setIsPlaying(false);
-        }
-      });
-
-      audio.addEventListener("error", (e) => {
-        console.warn(`Error loading sound ${soundPath}:`, e);
-        setError(new Error(`Failed to load sound: ${soundPath}`));
-        setIsLoaded(false);
-      });
-
-      // Store reference
-      audioRef.current = audio;
-
-      // Clean up
-      return () => {
-        if (audioRef.current) {
-          audioRef.current.pause();
-          audioRef.current.src = "";
-          audioRef.current = null;
-        }
-      };
-    } catch (err) {
-      console.error("Error initializing audio:", err);
-      setError(err instanceof Error ? err : new Error(String(err)));
+    const audio = new Audio(soundPath);
+    
+    if (!audioContextRef.current) {
+      audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
     }
-  }, [soundPath, options.autoplay, options.loop, options.volume, play]);
 
-  // Update volume when options change
+    if (options.loop !== undefined) audio.loop = options.loop;
+    if (options.volume !== undefined) audio.volume = options.volume;
+
+    const handleCanPlay = () => setIsLoaded(true);
+    const handleEnded = () => !options.loop && setIsPlaying(false);
+    const handleError = (e: Event) => {
+      console.warn(`Error loading sound ${soundPath}:`, e);
+      setError(new Error(`Failed to load sound: ${soundPath}`));
+      setIsLoaded(false);
+    };
+
+    audio.addEventListener("canplaythrough", handleCanPlay);
+    audio.addEventListener("ended", handleEnded);
+    audio.addEventListener("error", handleError);
+
+    audioRef.current = audio;
+
+    return () => {
+      audio.removeEventListener("canplaythrough", handleCanPlay);
+      audio.removeEventListener("ended", handleEnded);
+      audio.removeEventListener("error", handleError);
+      audio.pause();
+      audio.src = "";
+    };
+  }, [soundPath, options.loop]);
+
+  // Handle autoplay
+  useEffect(() => {
+    if (isLoaded && options.autoplay) {
+      play();
+    }
+  }, [isLoaded, options.autoplay, play]);
+
+  // Update volume
   useEffect(() => {
     if (audioRef.current && options.volume !== undefined) {
       audioRef.current.volume = options.volume;
