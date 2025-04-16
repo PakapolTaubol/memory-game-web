@@ -5,7 +5,6 @@ import { useState, useEffect, useRef, useCallback } from "react";
 type SoundOptions = {
   volume?: number;
   loop?: boolean;
-  autoplay?: boolean;
 };
 
 // Define the type for webkitAudioContext
@@ -26,7 +25,7 @@ export function useSound(soundPath: string, options: SoundOptions = {}) {
     if (!audioRef.current || !isLoaded || error) return;
 
     try {
-      // Ensure AudioContext is running on iOS
+      // Only try to resume audio context if it exists
       if (audioContextRef.current?.state === "suspended") {
         await audioContextRef.current.resume();
       }
@@ -49,13 +48,16 @@ export function useSound(soundPath: string, options: SoundOptions = {}) {
     }
   }, [isLoaded, error]);
 
-  // Initialize audio element and context
+  // Initialize audio element
   useEffect(() => {
     const audio = new Audio(soundPath);
     
-    if (!audioContextRef.current) {
-      audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
-    }
+    // Initialize AudioContext only when needed
+    const initAudioContext = () => {
+      if (!audioContextRef.current) {
+        audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
+      }
+    };
 
     if (options.loop !== undefined) audio.loop = options.loop;
     if (options.volume !== undefined) audio.volume = options.volume;
@@ -72,6 +74,16 @@ export function useSound(soundPath: string, options: SoundOptions = {}) {
     audio.addEventListener("ended", handleEnded);
     audio.addEventListener("error", handleError);
 
+    // Initialize audio context on first user interaction
+    const handleFirstInteraction = () => {
+      initAudioContext();
+      window.removeEventListener("touchstart", handleFirstInteraction);
+      window.removeEventListener("click", handleFirstInteraction);
+    };
+
+    window.addEventListener("touchstart", handleFirstInteraction, { once: true });
+    window.addEventListener("click", handleFirstInteraction, { once: true });
+
     audioRef.current = audio;
 
     return () => {
@@ -82,13 +94,6 @@ export function useSound(soundPath: string, options: SoundOptions = {}) {
       audio.src = "";
     };
   }, [soundPath, options.loop]);
-
-  // Handle autoplay
-  useEffect(() => {
-    if (isLoaded && options.autoplay) {
-      play();
-    }
-  }, [isLoaded, options.autoplay, play]);
 
   // Update volume
   useEffect(() => {

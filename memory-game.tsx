@@ -48,18 +48,10 @@ const initialCards = (): MemoryCard[] => {
     { icon: Leaf, color: "text-green-400" },
     { icon: Droplets, color: "text-blue-400" },
     { icon: Flame, color: "text-orange-400" },
-    { icon: Snowflake, color: "text-cyan-300" },
-    { icon: Umbrella, color: "text-indigo-300" },
-    { icon: Wind, color: "text-slate-300" },
-    { icon: Palette, color: "text-pink-400" },
-    { icon: Sparkles, color: "text-amber-300" },
   ];
 
   const cards: MemoryCard[] = [];
-  const numberOfPairs = 10; // For a 5x4 grid (20 cards)
-  const selectedIcons = iconConfigs.slice(0, numberOfPairs);
-
-  selectedIcons.forEach(({ icon, color }, index) => {
+  iconConfigs.forEach(({ icon, color }, index) => {
     cards.push({ id: index * 2, icon, color, isMatched: false });
     cards.push({ id: index * 2 + 1, icon, color, isMatched: false });
   });
@@ -72,19 +64,16 @@ export default function MemoryGame() {
   const [flippedIndexes, setFlippedIndexes] = useState<number[]>([]);
   const [matches, setMatches] = useState(0);
   const [isChecking, setIsChecking] = useState(false);
+  const [hasWon, setHasWon] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [soundSettings, setSoundSettings] = useState<SoundSettings>({
     masterVolume: 0.5,
     musicVolume: 0.4,
     effectsVolume: 1.0,
     isMuted: false,
   });
-  const [hasWon, setHasWon] = useState(false);
-  const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const openModal = () => setIsModalOpen(true);
-  const closeModal = () => setIsModalOpen(false);
-
-  // Use our custom hook for sounds
+  // Initialize sounds
   const backgroundMusic = useSound("/sounds/background-music.mp3", {
     loop: true,
     volume: soundSettings.isMuted
@@ -116,82 +105,65 @@ export default function MemoryGame() {
       : soundSettings.masterVolume * soundSettings.effectsVolume,
   });
 
-  // Shuffle cards only after the component has mounted on the client
+  // Shuffle cards on mount
   useEffect(() => {
     setCards((prevCards) => prevCards.sort(() => Math.random() - 0.5));
   }, []);
 
-  // Update sound volumes when settings change
-  useEffect(() => {
-    const effectiveVolume = soundSettings.isMuted
-      ? 0
-      : soundSettings.masterVolume;
-
-    // We don't need to manually update volumes as the useSound hook handles this
-    // when we pass new options in the dependency array
-  }, [soundSettings]);
-
+  // Set modal app element
   useEffect(() => {
     Modal.setAppElement("body");
   }, []);
 
+  // Check for win condition
   useEffect(() => {
     if (matches === 10 && !hasWon) {
       setHasWon(true);
-      openModal();
+      setIsModalOpen(true);
       gameCompleteSound.play();
     }
   }, [matches, hasWon, gameCompleteSound]);
 
   const handleCardClick = (clickedIndex: number) => {
-    // Prevent clicking if already checking or card is already matched
-    if (isChecking || cards[clickedIndex].isMatched || hasWon) return;
-    // Prevent clicking if card is already flipped
-    if (flippedIndexes.includes(clickedIndex)) return;
-    // Prevent clicking if two cards are already flipped
-    if (flippedIndexes.length === 2) return;
+    if (
+      isChecking ||
+      cards[clickedIndex].isMatched ||
+      hasWon ||
+      flippedIndexes.includes(clickedIndex) ||
+      flippedIndexes.length === 2
+    ) {
+      return;
+    }
 
-    // Play card flip sound
     cardFlipSound.play();
-
-    // Add clicked card to flipped cards
     const newFlipped = [...flippedIndexes, clickedIndex];
     setFlippedIndexes(newFlipped);
 
-    // If we now have two cards flipped, check for a match
     if (newFlipped.length === 2) {
       setIsChecking(true);
       const [firstIndex, secondIndex] = newFlipped;
-      const firstCard = cards[firstIndex];
-      const secondCard = cards[secondIndex];
+      const isMatch = cards[firstIndex].icon === cards[secondIndex].icon;
 
-      if (firstCard.icon === secondCard.icon) {
-        // Match found
-        setTimeout(() => {
-          // Play success sound
-          matchSuccessSound.play();
-
-          setCards(
-            cards.map((card, index) =>
-              index === firstIndex || index === secondIndex
-                ? { ...card, isMatched: true }
-                : card
-            )
-          );
-          setFlippedIndexes([]);
-          setMatches((m) => m + 1);
-          setIsChecking(false);
-        }, 500);
-      } else {
-        // No match - reset after delay
-        setTimeout(() => {
-          // Play fail sound
-          matchFailSound.play();
-
+      setTimeout(
+        () => {
+          if (isMatch) {
+            matchSuccessSound.play();
+            setCards(
+              cards.map((card, index) =>
+                index === firstIndex || index === secondIndex
+                  ? { ...card, isMatched: true }
+                  : card
+              )
+            );
+            setMatches((m) => m + 1);
+          } else {
+            matchFailSound.play();
+          }
           setFlippedIndexes([]);
           setIsChecking(false);
-        }, 1000);
-      }
+        },
+        isMatch ? 500 : 1000
+      );
     }
   };
 
@@ -201,80 +173,6 @@ export default function MemoryGame() {
     setMatches(0);
     setHasWon(false);
     setIsModalOpen(false);
-    initializeAudio();
-  };
-
-  const initializeAudio = () => {
-    if (typeof window !== "undefined") {
-      try {
-        // Check if we're on iOS
-        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-        console.log("Initializing audio on iOS:", isIOS);
-
-        // Function to resume audio context
-        const resumeAudio = async () => {
-          try {
-            // Initialize AudioContext
-            const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-            
-            // Create an oscillator to initialize the context
-            const oscillator = audioContext.createOscillator();
-            const gainNode = audioContext.createGain();
-            gainNode.gain.value = 0; // Silent
-            oscillator.connect(gainNode);
-            gainNode.connect(audioContext.destination);
-            
-            // Start and stop immediately
-            oscillator.start();
-            oscillator.stop(audioContext.currentTime + 0.001);
-            
-            console.log("Audio context initialized");
-            
-            // Start background music
-            backgroundMusic.play();
-            console.log("Background music started");
-            toast.success("Audio initialized successfully");
-          } catch (error) {
-            console.error("Error initializing audio:", error);
-            toast.error("Failed to initialize audio");
-          }
-        };
-
-        // For iOS, we need to handle the first interaction
-        if (isIOS) {
-          const handleFirstInteraction = () => {
-            console.log("First interaction detected on iOS");
-            resumeAudio();
-            // Remove all listeners after first interaction
-            ["touchstart", "click", "keydown"].forEach((event) => {
-              window.removeEventListener(event, handleFirstInteraction);
-            });
-          };
-
-          // Add listeners for first interaction
-          ["touchstart", "click", "keydown"].forEach((event) => {
-            window.addEventListener(event, handleFirstInteraction, {
-              once: true,
-            });
-          });
-        } else {
-          // For non-iOS devices
-          resumeAudio();
-        }
-      } catch (error) {
-        console.error("Error in audio initialization:", error);
-        toast.error("Error initializing audio");
-      }
-    }
-  };
-
-  // Add a debug button to help test audio
-  const debugAudio = () => {
-    console.log("Debugging audio...");
-    initializeAudio();
-    toast.info("Debugging audio...", {
-      description: "Please check if audio is working",
-    });
   };
 
   return (
@@ -284,15 +182,8 @@ export default function MemoryGame() {
           Memory Game By Pakapol Taubol
         </h1>
         <p className="text-indigo-200">Matches found: {matches} of 10</p>
-        <Button
-          onClick={debugAudio}
-          className="mt-2 bg-indigo-500 hover:bg-indigo-600"
-        >
-          Debug Audio
-        </Button>
       </div>
 
-      {/* Sound Controls */}
       <SoundController
         settings={soundSettings}
         onSettingsChange={setSoundSettings}
@@ -300,7 +191,6 @@ export default function MemoryGame() {
         onMusicToggle={backgroundMusic.toggle}
       />
 
-      {/* Game Grid */}
       <div className="grid grid-cols-5 grid-rows-4 gap-2 md:gap-3 p-4 rounded-xl bg-indigo-950/50 backdrop-blur-sm">
         {cards.map((card, index) => (
           <motion.div
@@ -358,7 +248,7 @@ export default function MemoryGame() {
 
       <Modal
         isOpen={isModalOpen}
-        onRequestClose={closeModal}
+        onRequestClose={() => setIsModalOpen(false)}
         style={{
           overlay: {
             backgroundColor: "rgba(0, 0, 0, 0.4)",
@@ -370,8 +260,8 @@ export default function MemoryGame() {
           },
           content: {
             position: "relative",
-            backgroundColor: "rgba(79, 70, 229, 0.1)", // สีม่วงหลัก (Indigo-500) พร้อมความโปร่งใส 80%
-            color: "#FFFFFF", // สีขาว
+            backgroundColor: "rgba(79, 70, 229, 0.1)",
+            color: "#FFFFFF",
             border: "none",
             borderRadius: "12px",
             padding: "48px",
@@ -398,7 +288,7 @@ export default function MemoryGame() {
             Play Again
           </Button>
           <Button
-            onClick={closeModal}
+            onClick={() => setIsModalOpen(false)}
             variant="outline"
             className="text-indigo-600 border-indigo-300 hover:bg-indigo-300 hover:text-indigo-900 rounded-full px-6 py-3 text-lg font-semibold cursor-pointer"
           >
