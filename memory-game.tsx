@@ -211,30 +211,36 @@ export default function MemoryGame() {
         const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
         console.log("Initializing audio on iOS:", isIOS);
 
-        const audioContext = new (window.AudioContext ||
-          (window as any).webkitAudioContext)();
-        console.log("Audio context state:", audioContext.state);
-
         // Function to resume audio context
         const resumeAudio = async () => {
           try {
-            if (audioContext.state === "suspended") {
-              console.log("Attempting to resume audio context...");
-              await audioContext.resume();
-              console.log("Audio context resumed successfully");
-
-              // Small delay to ensure context is ready
-              setTimeout(() => {
-                backgroundMusic.play();
-                console.log("Background music started");
-              }, 100);
-            }
+            // Initialize AudioContext
+            const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+            
+            // Create an oscillator to initialize the context
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            gainNode.gain.value = 0; // Silent
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            // Start and stop immediately
+            oscillator.start();
+            oscillator.stop(audioContext.currentTime + 0.001);
+            
+            console.log("Audio context initialized");
+            
+            // Start background music
+            backgroundMusic.play();
+            console.log("Background music started");
+            toast.success("Audio initialized successfully");
           } catch (error) {
-            console.error("Error resuming audio:", error);
+            console.error("Error initializing audio:", error);
+            toast.error("Failed to initialize audio");
           }
         };
 
-        // For iOS, we need to handle the first interaction differently
+        // For iOS, we need to handle the first interaction
         if (isIOS) {
           const handleFirstInteraction = () => {
             console.log("First interaction detected on iOS");
@@ -252,15 +258,12 @@ export default function MemoryGame() {
             });
           });
         } else {
-          // For non-iOS devices, use the original approach
-          const resumeEvents = ["touchstart", "click", "keydown"];
-          resumeEvents.forEach((event) => {
-            window.addEventListener(event, resumeAudio, { once: true });
-          });
+          // For non-iOS devices
           resumeAudio();
         }
       } catch (error) {
-        console.error("Error initializing audio:", error);
+        console.error("Error in audio initialization:", error);
+        toast.error("Error initializing audio");
       }
     }
   };
@@ -269,6 +272,9 @@ export default function MemoryGame() {
   const debugAudio = () => {
     console.log("Debugging audio...");
     initializeAudio();
+    toast.info("Debugging audio...", {
+      description: "Please check if audio is working",
+    });
   };
 
   return (
